@@ -26,13 +26,28 @@ extractQuantity = (sys.argv[2] if len(sys.argv) > 2 else 'Threshold1D').strip()
 if extractQuantity == '-':
     extractQuantity = ''
 statisticalProperty = (sys.argv[3] if len(sys.argv) > 3 else 'mean').lower()
-if statisticalProperty not in ['mean', 'rms', 'n']:
+if statisticalProperty not in ['mean', 'rms', 'n', 'efficient', 'inefficient', 'alive', 'dead', 'extrahits']:
     print "unknown value:" + statisticalProperty
     exit(-2)
 
 # search for root files
 rootFileNames = glob.glob(sys.argv[1] + '/*.root')
 rootFiles = [ROOT.TFile(x,'r') for x in rootFileNames]
+
+# calib.dat
+calibOptions = {}
+try:
+    with open(sys.argv[1] + '/calib.dat','r') as inputfile:
+        readValue = None
+        for line in inputfile:
+            if readValue == 'ntrig':
+                calibOptions['ntrig'] = int(line)
+                readValue = None
+
+            if line.strip().lower().split(':')[0] == 'repeat':
+                readValue = 'ntrig'
+except:
+    pass
 
 # loop over all modules in detectconfig
 with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
@@ -50,12 +65,50 @@ with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
                     break
 
             # extract value from histogram
-            if statisticalProperty == 'rms':
-                value = object.GetRMS() if object else '-1'
-            elif statisticalProperty == 'n':
-                value = object.GetEntries() if object else '-1'
-            else:
-                value = object.GetMean() if object else '-1'
+            try:
+                if statisticalProperty == 'rms':
+                    value = object.GetRMS() if object else '-1'
+                elif statisticalProperty == 'n':
+                    value = object.GetEntries() if object else '-1'
+                elif statisticalProperty == 'efficient':
+                    value = 0
+                    nTrig = calibOptions['ntrig'] if 'ntrig' in calibOptions else 10
+                    for c in range(52):
+                        for r in range(80):
+                            if object.GetBinContent(1+c,1+r) == 100.0:
+                                value += 1
+                elif statisticalProperty == 'extrahits':
+                    value = 0
+                    nTrig = calibOptions['ntrig'] if 'ntrig' in calibOptions else 10
+                    for c in range(52):
+                        for r in range(80):
+                            if object.GetBinContent(1+c,1+r) > 100.0:
+                                value += 1
+                elif statisticalProperty == 'inefficient':
+                    value = 0
+                    nTrig = calibOptions['ntrig'] if 'ntrig' in calibOptions else 10
+                    for c in range(52):
+                        for r in range(80):
+                            if object.GetBinContent(1+c,1+r) < 100.0:
+                                value += 1
+                elif statisticalProperty == 'alive':
+                    value = 0
+                    nTrig = calibOptions['ntrig'] if 'ntrig' in calibOptions else 10
+                    for c in range(52):
+                        for r in range(80):
+                            if object.GetBinContent(1+c,1+r) > 0:
+                                value += 1
+                elif statisticalProperty == 'dead':
+                    value = 0
+                    nTrig = calibOptions['ntrig'] if 'ntrig' in calibOptions else 10
+                    for c in range(52):
+                        for r in range(80):
+                            if object.GetBinContent(1+c,1+r) < 0.1:
+                                value += 1
+                else:
+                    value = object.GetMean() if object else '-1'
+            except:
+                value = -999
 
             # skip modules with noAnalogSignal flag
             if 'noAnalog' not in '_'.join(rocName):

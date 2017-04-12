@@ -13,11 +13,22 @@ import os
 # output: some colorful PDFs
 
 dataToPlot = []
+options = {}
 
 # read from either command line argument or stdin
 for line in fileinput.input():
     dataToPlot.append(line)
 
+# settings
+for x in dataToPlot:
+    if x.split(':')[0].strip().lower() == 'set':
+        optionParts = x.split(':')[1].strip().lower().split('=')
+        if len(optionParts) > 1:
+            options[optionParts[0]] = optionParts[1]
+        else:
+            options[optionParts[0]] = True
+
+        # data to plot
 rocData = [x.strip().split(' ') for x in dataToPlot if '_SEC' in x and '_LYR' in x]
 
 # geometry
@@ -58,6 +69,8 @@ for rocDataRow in rocData:
     try:
         value = float(rocDataRow[1])
         if value > 0:
+            if value > 41600:
+                print "!!!:", rocDataRow
             layerHistogram.SetBinContent(1+iCol, 1+iRow, value)
             if rocDataRow[0] not in filled1D:
                 layer1dHists[layer].Fill(value)
@@ -132,7 +145,10 @@ ROOT.gPad.Update()
 palette = layerHistogram.GetListOfFunctions().FindObject("palette")
 palette.SetY1NDC(0.7)
 palette.SetY2NDC(0.95)
-
+palette.SetX1NDC(0.85)
+palette.SetX2NDC(0.92)
+if 'logz' in options:
+    ROOT.gPad.SetLogz()
 row = 0
 rootText = ROOT.TText()
 rootText.SetTextSize(0.012)

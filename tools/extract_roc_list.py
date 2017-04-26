@@ -14,6 +14,16 @@ import sys
 #         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC5 57
 #         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC6 65
 #         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC7 65
+#
+# more examples:
+#  analyze number of pixels per ROC with >0 hits:
+#    (echo "SET:LOGZ" && ./extract_roc_list.py ../PixelAlive/Runs/Run_1094/ - alive) | ./detectorplot.py
+#
+# IanaBpix
+#    (echo "SET:TITLE=Run 817 new Vana" && ../../../tools/extract_roc_list.py ./ SummaryTrees/SummaryInfo:newVana tree) | ../../../tools/detectorplot.py
+#    (echo -e "SET:TITLE=Run 817 new Vana\nSET:XBINS=256" && ../../../tools/extract_roc_list.py ./ SummaryTrees/SummaryInfo:newVana tree) | ../../../tools/detectorplot.py
+
+
 
 if len(sys.argv) < 2:
     print "usage: %s path/to/runfolder/with/root/files [Quantity] [mean/rms]"%sys.argv[0]
@@ -26,7 +36,7 @@ extractQuantity = (sys.argv[2] if len(sys.argv) > 2 else 'Threshold1D').strip()
 if extractQuantity == '-':
     extractQuantity = ''
 statisticalProperty = (sys.argv[3] if len(sys.argv) > 3 else 'mean').lower()
-if statisticalProperty not in ['mean', 'rms', 'n', 'efficient', 'inefficient', 'alive', 'dead', 'extrahits', 'deltaiana','tree']:
+if statisticalProperty not in ['mean', 'rms', 'n', 'efficient', 'inefficient', 'alive', 'dead', 'extrahits', 'deltaiana','tree','meanoccupancy'] and not statisticalProperty.startswith('occupancy'):
     print "unknown value:" + statisticalProperty
     exit(-2)
 
@@ -49,11 +59,26 @@ try:
 except:
     pass
 
+treeData = {}
+if statisticalProperty == 'tree':
+
+    for rootFile in rootFiles:
+        treeName = extractQuantity.split(':')[0]
+        branchname = extractQuantity.split(':')[1]
+        object = rootFile.Get(treeName)
+        if object:
+            for evt in object:
+                # strings are terminated by \x00 characters, with garbage after
+                rocNameTree = object.rocName.split('\x00')[0].strip()
+                if rocNameTree not in treeData:
+                   treeData[rocNameTree] = object.__getattr__(branchname)
+
 # loop over all modules in detectconfig
 with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
     for line in inputfile:
         if '_' in line:
             rocName = line.strip().split('_')
+            rocNameJoined = '_'.join(rocName)
             histogramName = '/'.join(['_'.join(rocName[:i+1]) for i in range(len(rocName))])
             object = None
 
@@ -61,13 +86,11 @@ with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
                 value = '#'
             elif statisticalProperty == 'tree':
                 #
-                for rootFile in rootFiles:
-                    treeName = extractQuantity.split(':')[0]
-                    branchname = extractQuantity.split(':')[1]
-                    object = rootFile.Get(treeName)
-
-                    if object:
-                        break
+                if rocNameJoined in treeData:
+                    value = treeData[rocNameJoined]
+                    object = True
+                else:
+                    object = None
 
             else:
                 # search for module histogram in all of the root files
@@ -106,14 +129,27 @@ with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
                                     value += 1
                     elif statisticalProperty == 'alive':
                         value = 0
-                        nTrig = calibOptions['ntrig'] if 'ntrig' in calibOptions else 10
                         for c in range(52):
                             for r in range(80):
                                 if object.GetBinContent(1+c,1+r) > 0:
                                     value += 1
+                    elif statisticalProperty.startswith('occupancy'):
+                        minOccupancy = float(statisticalProperty[9:])
+                        value = 0
+                        for c in range(52):
+                            for r in range(80):
+                                # minOccupancy is given as fraction between 0 and 1, bin content is between 0 and 100.
+                                if object.GetBinContent(1+c,1+r) >= minOccupancy*100:
+                                    value += 1
+                    elif statisticalProperty.startswith('meanoccupancy'):
+                        value = 0
+                        for c in range(52):
+                            for r in range(80):
+                                # bin content is between 0 and 100.
+                                value += object.GetBinContent(1+c, 1+r)
+                        value /= 416000.0
                     elif statisticalProperty == 'dead':
                         value = 0
-                        nTrig = calibOptions['ntrig'] if 'ntrig' in calibOptions else 10
                         for c in range(52):
                             for r in range(80):
                                 if object.GetBinContent(1+c,1+r) < 0.1:

@@ -5,6 +5,11 @@ import datetime
 import fileinput
 import os
 
+# usage:
+# (1) ./detectorplot.py list.txt
+# (2) cat list.txt | ./detectorplot.py
+# (3) ./detectorplot.py  input line by line and end with CTRL+d
+#
 # input: .txt files created by ./extract_roc_list.py, format e.g.:
 #         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC4 56
 #         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC5 57
@@ -63,16 +68,19 @@ class BPixPlotter:
         self.horizontalBlackLines = [12, 52, 124, 232]
         self.thickBlackLines = [6, 20, 42]
 
+        # other
+        self.fileFormats = ['pdf', 'root', 'png']
+
     def plot(self, dataToPlot):
         options = {}
         # settings
         for x in dataToPlot:
             if x.split(':')[0].strip().lower() == 'set':
-                optionParts = x.split(':')[1].strip().lower().split('=')
+                optionParts = x.split(':')[1].strip().split('=')
                 if len(optionParts) > 1:
-                    options[optionParts[0]] = optionParts[1]
+                    options[optionParts[0].lower()] = optionParts[1]
                 else:
-                    options[optionParts[0]] = True
+                    options[optionParts[0].lower()] = True
 
         # data to plot
         rocData = [x.strip().split(' ') for x in dataToPlot if '_SEC' in x and '_LYR' in x]
@@ -84,12 +92,13 @@ class BPixPlotter:
 
         # initialize canvas and histograms
         c1 = ROOT.TCanvas("c1", "c1", self.canvasW, self.canvasH)
-        layerHistogram = ROOT.TH2D("BPix", self.plotTitle, nCols, 0, nCols, nRows, 0, nRows)
+        layerHistogram = ROOT.TH2D("BPix", options['title'] if 'title' in options else self.plotTitle, nCols, 0, nCols, nRows, 0, nRows)
         layerHistogram.SetStats(0)
         layer1dHists = {}
         filled1D = {}
         for i in range(1,5):
-            layer1dHists[i] = ROOT.TH1D("LYR%d"%(i), "LYR%d"%(i), 512, 0.0, 256.0)
+            hname = (options['title'] + ' ') if 'title' in options else ''
+            layer1dHists[i] = ROOT.TH1D("LYR%d"%(i), hname + "LYR%d"%(i), int(options['xbins']) if 'xbins' in options else 512, float(options['xmin']) if 'xmin' in options else 0.0, float(options['xmax']) if 'xmax' in options else 256.0)
 
         maskedrocs = []
         for rocDataRow in rocData:
@@ -130,7 +139,6 @@ class BPixPlotter:
                         layerHistogram.SetBinContent(1 + iCol, 1 + iRow, value)
 
                     # fill distributions
-                    if value > 0:
                         if rocDataRow[0] not in filled1D:
                             layer1dHists[layer].Fill(value)
                             filled1D[rocDataRow[0]] = value
@@ -139,7 +147,8 @@ class BPixPlotter:
                 pass
 
         layerHistogram.SetContour(self.paletteContours)
-        #layerHistogram.GetZaxis().SetRangeUser(0, 4)
+        if 'zrange' in options:
+            layerHistogram.GetZaxis().SetRangeUser(float(options['zrange'].split(',')[0]), float(options['zrange'].split(',')[1]))
         layerHistogram.Draw("colza")
 
         lines = []
@@ -224,10 +233,11 @@ class BPixPlotter:
             rootText.DrawText(moduleName[0]-2, -2.5, moduleName[1])
             rootText.DrawText(moduleName[0]-2, nRows+1.5, moduleName[1])
 
+        rootText.DrawTextNDC(0.8,0.988,datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S'))
         ROOT.gPad.Update()
         st = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        c1.SaveAs(plotfolder + '/bpix_%s.pdf'%st)
-        c1.SaveAs(plotfolder + '/bpix_%s.root'%st)
+        for ext in self.fileFormats:
+            c1.SaveAs(plotfolder + '/bpix_%s.%s'%(st,ext))
         c1.Delete()
 
         for i,h in layer1dHists.iteritems():
@@ -239,8 +249,8 @@ class BPixPlotter:
             ROOT.gPad.SetGridy()
             ROOT.gPad.SetLogy()
             ROOT.gPad.Update()
-            c1.SaveAs(plotfolder + '/bpix_distribution_L%d_%s.pdf' % (i, st))
-            c1.SaveAs(plotfolder + '/bpix_distribution_L%d_%s.root' % (i, st))
+            for ext in self.fileFormats:
+                c1.SaveAs(plotfolder + '/bpix_distribution_L%d_%s.%s' % (i, st, ext))
             c1.Delete()
 
 

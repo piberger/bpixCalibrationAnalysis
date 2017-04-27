@@ -11,10 +11,15 @@ import os
 # (3) ./detectorplot.py  input line by line and end with CTRL+d
 #
 # input: .txt files created by ./extract_roc_list.py, format e.g.:
-#         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC4 56
-#         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC5 57
-#         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC6 65
-#         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC7 65
+#
+# SET:ZRANGE=0,100
+# BPix_BmO_SEC1_LYR1_LDR1F_MOD2_ROC2 #   <- not tested, masked in detectconfig
+# BPix_BmO_SEC1_LYR1_LDR1F_MOD2_ROC3 *   <- tested, flagged bad
+# BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC4 56
+# BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC5 57
+# BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC6 65
+# BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC7 65
+#
 # output: some colorful PDFs
 
 class BPixPlotter:
@@ -25,6 +30,10 @@ class BPixPlotter:
         ROOT.gStyle.SetLineStyleString(11, "6 6")
         self.maskedRocColor = ROOT.kGray
         self.maskedRocStyle = 3144
+        self.ladderLineColor = ROOT.kGray+1
+        self.sectorLineColor = ROOT.kGray+2
+        self.badRocColor = ROOT.kMagenta
+        self.badRocStyle = 3013
 
         self.canvasW = 2000
         self.canvasH = 5000
@@ -70,10 +79,12 @@ class BPixPlotter:
 
         # other
         self.fileFormats = ['pdf', 'root', 'png']
+        self.blacklist = {}
 
     def plot(self, dataToPlot):
+
+        # (plot) options
         options = {}
-        # settings
         for x in dataToPlot:
             if x.split(':')[0].strip().lower() == 'set':
                 optionParts = x.split(':')[1].strip().split('=')
@@ -81,6 +92,9 @@ class BPixPlotter:
                     options[optionParts[0].lower()] = optionParts[1]
                 else:
                     options[optionParts[0].lower()] = True
+        if 'xrange' in options:
+            options['xmin'] = options['xrange'].split(',')[0]
+            options['xmax'] = options['xrange'].split(',')[1]
 
         # data to plot
         rocData = [x.strip().split(' ') for x in dataToPlot if '_SEC' in x and '_LYR' in x]
@@ -119,26 +133,40 @@ class BPixPlotter:
             iCol = module * self.rocsPerModuleRow + rocCol
 
             try:
+                # masked (=not tested) ROCS, based on detectconfig.dat
                 if rocDataRow[1] == '#':
+                    maskedRocMarker = ROOT.TBox(layerHistogram.GetXaxis().GetBinLowEdge(1 + iCol), layerHistogram.GetXaxis().GetBinLowEdge(1 + iRow),
+                        layerHistogram.GetXaxis().GetBinUpEdge(1 + iCol), layerHistogram.GetXaxis().GetBinUpEdge(1 + iRow))
+                    maskedRocMarker.SetFillStyle(1001)
+                    maskedRocMarker.SetFillColor(ROOT.kWhite)
+                    maskedrocs.append(maskedRocMarker)
                     maskedRocMarker = ROOT.TBox(layerHistogram.GetXaxis().GetBinLowEdge(1 + iCol), layerHistogram.GetXaxis().GetBinLowEdge(1 + iRow),
                         layerHistogram.GetXaxis().GetBinUpEdge(1 + iCol), layerHistogram.GetXaxis().GetBinUpEdge(1 + iRow))
                     maskedRocMarker.SetFillStyle(self.maskedRocStyle)
                     maskedRocMarker.SetFillColor(self.maskedRocColor)
                     maskedrocs.append(maskedRocMarker)
+                # blacklisted ROCs, based on user specified criteria
                 elif rocDataRow[1] == '*':
                     maskedRocMarker = ROOT.TBox(layerHistogram.GetXaxis().GetBinLowEdge(1 + iCol), layerHistogram.GetXaxis().GetBinLowEdge(1 + iRow),
                         layerHistogram.GetXaxis().GetBinUpEdge(1 + iCol), layerHistogram.GetXaxis().GetBinUpEdge(1 + iRow))
-                    maskedRocMarker.SetFillStyle(3001)
-                    maskedRocMarker.SetFillColor(ROOT.kMagenta)
+                    maskedRocMarker.SetFillStyle(1001)
+                    maskedRocMarker.SetFillColor(ROOT.kWhite)
                     maskedrocs.append(maskedRocMarker)
-                else:
+                    maskedRocMarker = ROOT.TBox(layerHistogram.GetXaxis().GetBinLowEdge(1 + iCol), layerHistogram.GetXaxis().GetBinLowEdge(1 + iRow),
+                        layerHistogram.GetXaxis().GetBinUpEdge(1 + iCol), layerHistogram.GetXaxis().GetBinUpEdge(1 + iRow))
+                    maskedRocMarker.SetFillStyle(self.badRocStyle)
+                    maskedRocMarker.SetFillColor(self.badRocColor)
+                    maskedrocs.append(maskedRocMarker)
+                    self.blacklist[rocDataRow[0]] = True
+                # good ROC
+                elif rocDataRow[0] not in self.blacklist:
                     value = float(rocDataRow[1])
 
                     # fill map
                     if 'positive' not in options or value > 0:
                         layerHistogram.SetBinContent(1 + iCol, 1 + iRow, value)
 
-                    # fill distributions
+                        # fill distributions
                         if rocDataRow[0] not in filled1D:
                             layer1dHists[layer].Fill(value)
                             filled1D[rocDataRow[0]] = value
@@ -151,7 +179,20 @@ class BPixPlotter:
             layerHistogram.GetZaxis().SetRangeUser(float(options['zrange'].split(',')[0]), float(options['zrange'].split(',')[1]))
         layerHistogram.Draw("colza")
 
+        # draw masked and bad rocs
+        for i in maskedrocs:
+            i.Draw()
+
+        # draw lines
         lines = []
+
+        for i in range(nLaddersTotal*2):
+            line = ROOT.TLine(0, nRows - i*2, nCols, nRows - i*2)
+            line.SetLineColor(self.ladderLineColor)
+            line.SetLineWidth(1)
+            line.Draw("same")
+            lines.append(line)
+
         for i in self.thickBlackLines:
             line = ROOT.TLine(0, nRows - i*4, nCols, nRows - i*4)
             line.SetLineColor(ROOT.kBlack)
@@ -169,9 +210,9 @@ class BPixPlotter:
 
         for i in self.dashedLinePositions:
             line = ROOT.TLine(0, nRows - i, nCols, nRows - i)
-            line.SetLineColor(ROOT.kGray)
+            line.SetLineColor(self.sectorLineColor)
             line.SetLineStyle(11)
-            line.SetLineWidth(1)
+            line.SetLineWidth(2)
             line.Draw("same")
             lines.append(line)
         for i in self.horizontalBlackLines:
@@ -194,8 +235,6 @@ class BPixPlotter:
         except:
             pass
 
-        for i in maskedrocs:
-            i.Draw()
 
         ROOT.gPad.Update()
         c1.SetRightMargin(0.2)
@@ -233,7 +272,7 @@ class BPixPlotter:
             rootText.DrawText(moduleName[0]-2, -2.5, moduleName[1])
             rootText.DrawText(moduleName[0]-2, nRows+1.5, moduleName[1])
 
-        rootText.DrawTextNDC(0.8,0.988,datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S'))
+        rootText.DrawTextNDC(0.8, 0.988, datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S'))
         ROOT.gPad.Update()
         st = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         for ext in self.fileFormats:
@@ -253,8 +292,6 @@ class BPixPlotter:
                 c1.SaveAs(plotfolder + '/bpix_distribution_L%d_%s.%s' % (i, st, ext))
             c1.Delete()
 
-
-
 dataToPlot = []
 
 # read from either command line argument or stdin
@@ -263,10 +300,3 @@ for line in fileinput.input():
 
 plotter = BPixPlotter()
 plotter.plot(dataToPlot)
-
-
-
-
-
-
-

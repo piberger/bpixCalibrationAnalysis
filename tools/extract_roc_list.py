@@ -19,10 +19,16 @@ import sys
 #  analyze number of pixels per ROC with >0 hits:
 #    (echo "SET:LOGZ" && ./extract_roc_list.py ../PixelAlive/Runs/Run_1094/ - alive) | ./detectorplot.py
 #
-# IanaBpix
-#    (echo "SET:TITLE=Run 817 new Vana" && ../../../tools/extract_roc_list.py ./ SummaryTrees/SummaryInfo:newVana tree) | ../../../tools/detectorplot.py
-#    (echo -e "SET:TITLE=Run 817 new Vana\nSET:XBINS=256" && ../../../tools/extract_roc_list.py ./ SummaryTrees/SummaryInfo:newVana tree) | ../../../tools/detectorplot.py
-
+# IanaBpix (extract information from tree)
+#    (echo "SET:TITLE=Run 817 new Vana" && ../../../tools/extract_roc_list.py ./ SummaryTrees/SummaryInfo:newVana tree)
+#           | ../../../tools/detectorplot.py
+#    (echo -e "SET:TITLE=Run 817 new Vana\nSET:XBINS=256" && ../../../tools/extract_roc_list.py
+#           ./ SummaryTrees/SummaryInfo:newVana tree) | ../../../tools/detectorplot.py
+#
+# IanaBpix, with pass=0 ROCs flagged bad
+# (echo -e "SET:TITLE=Run 817 delta Vana\nSET:XBINS=256" && ../../../tools/extract_roc_list.py ./
+#    SummaryTrees/PassState:pass tree | grep 0.0 | awk '{print $1 " *"}' && ../../../tools/extract_roc_list.py ./
+#    SummaryTrees/SummaryInfo:deltaVana tree) | ../../../tools/detectorplot.py
 
 
 if len(sys.argv) < 2:

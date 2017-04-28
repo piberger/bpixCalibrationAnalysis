@@ -3,33 +3,7 @@ import glob
 import ROOT
 import sys
 
-# run: e.g. ./extract_roc_list.py Runs/1234 Threshold1D mean > run1234.txt
-#
-#  or pipe directly to ./detectorplot.py:
-#    ./extract_roc_list.py Runs/758/ Threshold1D mean | ./detectorplot.py
-#
-# input: .root files from PixelAnalysis.exe for SCurve calibration, detectconfig.dat
-# output: text file with format: ROC VALUE, e.g.
-#         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC4 56
-#         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC5 57
-#         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC6 65
-#         BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC7 65
-#
-# more examples:
-#  analyze number of pixels per ROC with >0 hits:
-#    (echo "SET:LOGZ" && ./extract_roc_list.py ../PixelAlive/Runs/Run_1094/ - alive) | ./detectorplot.py
-#
-# IanaBpix (extract information from tree)
-#    (echo "SET:TITLE=Run 817 new Vana" && ../../../tools/extract_roc_list.py ./ SummaryTrees/SummaryInfo:newVana tree)
-#           | ../../../tools/detectorplot.py
-#    (echo -e "SET:TITLE=Run 817 new Vana\nSET:XBINS=256" && ../../../tools/extract_roc_list.py
-#           ./ SummaryTrees/SummaryInfo:newVana tree) | ../../../tools/detectorplot.py
-#
-# IanaBpix, with pass=0 ROCs flagged bad
-# (echo -e "SET:TITLE=Run 817 delta Vana\nSET:XBINS=256" && ../../../tools/extract_roc_list.py ./
-#    SummaryTrees/PassState:pass tree | grep 0.0 | awk '{print $1 " *"}' && ../../../tools/extract_roc_list.py ./
-#    SummaryTrees/SummaryInfo:deltaVana tree) | ../../../tools/detectorplot.py
-
+# usage: see README.md
 
 if len(sys.argv) < 2:
     print "usage: %s path/to/runfolder/with/root/files [Quantity] [mean/rms]"%sys.argv[0]

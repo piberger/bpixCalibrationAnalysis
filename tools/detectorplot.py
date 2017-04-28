@@ -5,22 +5,7 @@ import datetime
 import fileinput
 import os
 
-# usage:
-# (1) ./detectorplot.py list.txt
-# (2) cat list.txt | ./detectorplot.py
-# (3) ./detectorplot.py  input line by line and end with CTRL+d
-#
-# input: .txt files created by ./extract_roc_list.py, format e.g.:
-#
-# SET:ZRANGE=0,100
-# BPix_BmO_SEC1_LYR1_LDR1F_MOD2_ROC2 #   <- not tested, masked in detectconfig
-# BPix_BmO_SEC1_LYR1_LDR1F_MOD2_ROC3 *   <- tested, flagged bad
-# BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC4 56
-# BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC5 57
-# BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC6 65
-# BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC7 65
-#
-# output: some colorful PDFs
+# usage: see README.md
 
 class BPixPlotter:
     def __init__(self):
@@ -30,7 +15,7 @@ class BPixPlotter:
         ROOT.gStyle.SetLineStyleString(11, "6 6")
         self.maskedRocColor = ROOT.kGray
         self.maskedRocStyle = 3144
-        self.ladderLineColor = ROOT.kGray+1
+        self.ladderLineColor = ROOT.TColor.GetColorTransparent(ROOT.kGray, 0.1)
         self.sectorLineColor = ROOT.kGray+2
         self.badRocColor = ROOT.kMagenta
         self.badRocStyle = 3013

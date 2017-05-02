@@ -72,7 +72,7 @@ class BPixPlotter:
         options = {}
         for x in dataToPlot:
             if x.split(':')[0].strip().lower() == 'set':
-                optionParts = x.split(':')[1].strip().split('=')
+                optionParts = ':'.join(x.split(':')[1:]).strip().split('=')
                 if len(optionParts) > 1:
                     options[optionParts[0].lower()] = optionParts[1]
                 else:
@@ -162,7 +162,7 @@ class BPixPlotter:
         layerHistogram.SetContour(self.paletteContours)
         if 'zrange' in options:
             layerHistogram.GetZaxis().SetRangeUser(float(options['zrange'].split(',')[0]), float(options['zrange'].split(',')[1]))
-        layerHistogram.Draw("colza")
+        layerHistogram.Draw(options['drawoption'] if 'drawoption' in options else "colza")
 
         # draw masked and bad rocs
         for i in maskedrocs:

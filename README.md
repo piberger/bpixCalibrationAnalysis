@@ -14,6 +14,8 @@ Creates a ROC map of full detector. ROC orientation is always 7 to 0 in the uppe
 input: .txt files created by ./extract_roc_list.py, format e.g.:
 ````
 SET:ZRANGE=0,100
+SET:LOGZ
+SET:TITLE=Plot title here
 BPix_BmO_SEC1_LYR1_LDR1F_MOD2_ROC2 #
 BPix_BmO_SEC1_LYR1_LDR1F_MOD2_ROC3 *
 BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC4 56
@@ -45,6 +47,7 @@ BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC6 65
 BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC7 65
 ````
 
+
 more examples:
   analyze number of pixels per ROC with >0 hits:
 ````
@@ -53,7 +56,7 @@ more examples:
 
 all examples below are ran from run directory. `$DETECTORPLOTPATH` should point to `tools/`.
 
-IanaBpix (extract information from tree)
+**IanaBpix** (extract information from tree)
 ````
     (echo "SET:TITLE=Run 817 new Vana" && $DETECTORPLOTPATH/extract_roc_list.py ./ SummaryTrees/SummaryInfo:newVana tree)
            | $DETECTORPLOTPATH/detectorplot.py
@@ -62,15 +65,33 @@ IanaBpix (extract information from tree)
     (echo -e "SET:TITLE=Run 817 new Vana\nSET:XBINS=256" && $DETECTORPLOTPATH/extract_roc_list.py
            ./ SummaryTrees/SummaryInfo:newVana tree) | $DETECTORPLOTPATH/detectorplot.py
 ````
-IanaBpix, with pass=0 ROCs flagged bad
+**IanaBpix**, with pass=0 ROCs flagged bad
 ````
 (echo -e "SET:TITLE=Run 817 delta Vana\nSET:XBINS=256" && $DETECTORPLOTPATH/extract_roc_list.py ./
    SummaryTrees/PassState:pass tree | grep 0.0 | awk '{print $1 " *"}' && $DETECTORPLOTPATH/extract_roc_list.py ./
    SummaryTrees/SummaryInfo:deltaVana tree) | $DETECTORPLOTPATH/detectorplot.py
 ````
-TBM parameters:
+**TBM** parameters (from config/tbm/n/ folder):
 ````
  (echo -e "SET:TITLE=TBMADelay\n" && for i in `seq 0 15`; do grep 'TBMADelay' TBM*.dat | tr ':' ' ' |
      sed 's/TBM_module_//g' | sed 's/ TBMADelay //g' | sed "s/\.dat/_ROC$i/g"; done) |
      $DETECTORPLOTPATH/detectorplot.py
+````
+**TBMPLLNoTokenPass** scan:
+````
+    (echo -e "SET:TITLE=Run 1108: newTBMPLLdelayX\n" && $DETECTORPLOTPATH/extract_roc_list.py ./ SummaryTrees/SummaryInfo:newTBMPLLdelayX tree) |
+    $DETECTORPLOTPATH/detectorplot.py
+````
+**PixelAlive** inefficiency, log scale:
+````
+    (echo -e "SET:TITLE=Run 1018 inefficiency\nSET:ZRANGE=0.001,1\nSET:LOGZ\nSET:POSITIVE\n" && $DETECTORPLOTPATH/extract_roc_list.py ./ - inefficiency) |
+    $DETECTORPLOTPATH/detectorplot.py
+````
+**SCurve** threshold:
+````
+    (echo -e "SET:TITLE=Run 1093 threshold\n" && $DETECTORPLOTPATH/extract_roc_list.py ./ Threshold1D mean) | $DETECTORPLOTPATH/detectorplot.py
+````
+**SCurve** noise:
+````
+    (echo -e "SET:TITLE=Run 1093 noise\n" && $DETECTORPLOTPATH/extract_roc_list.py ./ Noise1D mean) | $DETECTORPLOTPATH/detectorplot.py
 ````

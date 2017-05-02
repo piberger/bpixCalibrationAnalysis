@@ -16,7 +16,7 @@ extractQuantity = (sys.argv[2] if len(sys.argv) > 2 else 'Threshold1D').strip()
 if extractQuantity == '-':
     extractQuantity = ''
 statisticalProperty = (sys.argv[3] if len(sys.argv) > 3 else 'mean').lower()
-if statisticalProperty not in ['mean', 'rms', 'n', 'efficient', 'inefficient', 'alive', 'dead', 'extrahits', 'deltaiana','tree','meanoccupancy'] and not statisticalProperty.startswith('occupancy'):
+if statisticalProperty not in ['mean', 'rms', 'n', 'efficient', 'inefficient', 'alive', 'dead', 'extrahits', 'deltaiana','tree','meanoccupancy','efficiency','inefficiency'] and not statisticalProperty.startswith('occupancy'):
     print "unknown value:" + statisticalProperty
     exit(-2)
 
@@ -49,9 +49,26 @@ if statisticalProperty == 'tree':
         if object:
             for evt in object:
                 # strings are terminated by \x00 characters, with garbage after
-                rocNameTree = object.rocName.split('\x00')[0].strip()
-                if rocNameTree not in treeData:
-                   treeData[rocNameTree] = object.__getattr__(branchname)
+                try:
+                    rocNameTree = object.rocName.split('\x00')[0].strip()
+
+                    if rocNameTree not in treeData:
+                       treeData[rocNameTree] = object.__getattr__(branchname)
+                except:
+                    moduleNameTree = object.moduleName.split('\x00')[0].strip()
+
+                    if 'LYR1' in moduleNameTree and 'H_' in moduleNameTree:
+                        rocsList = [4, 5, 6, 7, 8, 9, 10, 11]
+                    elif 'LYR1' in moduleNameTree and 'F_' in moduleNameTree:
+                        rocsList = [0, 1, 2, 3, 12, 13, 14, 15]
+                    else:
+                        rocsList = [0, 1, 2, 3, 12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 10, 11]
+
+                    for i in rocsList:
+                        rocNameTree = moduleNameTree + "_ROC%d"%i
+                        if rocNameTree not in treeData:
+                           treeData[rocNameTree] = object.__getattr__(branchname)
+
 
 # loop over all modules in detectconfig
 with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
@@ -121,13 +138,21 @@ with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
                                 # minOccupancy is given as fraction between 0 and 1, bin content is between 0 and 100.
                                 if object.GetBinContent(1+c,1+r) >= minOccupancy*100:
                                     value += 1
-                    elif statisticalProperty.startswith('meanoccupancy'):
+                    elif statisticalProperty.startswith('meanoccupancy') or statisticalProperty.startswith('efficiency'):
                         value = 0
                         for c in range(52):
                             for r in range(80):
                                 # bin content is between 0 and 100.
                                 value += object.GetBinContent(1+c, 1+r)
                         value /= 416000.0
+                    elif statisticalProperty.startswith('inefficiency'):
+                        value = 0
+                        for c in range(52):
+                            for r in range(80):
+                                # bin content is between 0 and 100.
+                                value += object.GetBinContent(1+c, 1+r)
+                        value /= 416000.0
+                        value = 1.0 - value
                     elif statisticalProperty == 'dead':
                         value = 0
                         for c in range(52):

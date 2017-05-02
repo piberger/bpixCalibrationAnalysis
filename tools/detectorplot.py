@@ -227,11 +227,14 @@ class BPixPlotter:
         c1.SetTopMargin(0.05)
         c1.SetBorderMode(1)
         ROOT.gPad.Update()
-        palette = layerHistogram.GetListOfFunctions().FindObject("palette")
-        palette.SetY1NDC(self.paletteCoordinates[1])
-        palette.SetY2NDC(self.paletteCoordinates[3])
-        palette.SetX1NDC(self.paletteCoordinates[0])
-        palette.SetX2NDC(self.paletteCoordinates[2])
+        try:
+            palette = layerHistogram.GetListOfFunctions().FindObject("palette")
+            palette.SetY1NDC(self.paletteCoordinates[1])
+            palette.SetY2NDC(self.paletteCoordinates[3])
+            palette.SetX1NDC(self.paletteCoordinates[0])
+            palette.SetX2NDC(self.paletteCoordinates[2])
+        except:
+            pass
 
         if 'logz' in options:
             ROOT.gPad.SetLogz()
@@ -264,18 +267,19 @@ class BPixPlotter:
             c1.SaveAs(plotfolder + '/bpix_%s.%s'%(st,ext))
         c1.Delete()
 
-        for i,h in layer1dHists.iteritems():
-            c1 = ROOT.TCanvas("c1", "c1", 500, 500)
-            h.GetXaxis().SetTitle('Value')
-            h.GetYaxis().SetTitle('# ROCs')
-            h.Draw()
-            ROOT.gPad.SetGridx()
-            ROOT.gPad.SetGridy()
-            ROOT.gPad.SetLogy()
-            ROOT.gPad.Update()
-            for ext in self.fileFormats:
-                c1.SaveAs(plotfolder + '/bpix_distribution_L%d_%s.%s' % (i, st, ext))
-            c1.Delete()
+        if 'distributions' in options and options['distributions']:
+            for i,h in layer1dHists.iteritems():
+                c1 = ROOT.TCanvas("c1", "c1", 500, 500)
+                h.GetXaxis().SetTitle('Value')
+                h.GetYaxis().SetTitle('# ROCs')
+                h.Draw()
+                ROOT.gPad.SetGridx()
+                ROOT.gPad.SetGridy()
+                ROOT.gPad.SetLogy()
+                ROOT.gPad.Update()
+                for ext in self.fileFormats:
+                    c1.SaveAs(plotfolder + '/bpix_distribution_L%d_%s.%s' % (i, st, ext))
+                c1.Delete()
 
 dataToPlot = []
 

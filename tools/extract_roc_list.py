@@ -5,6 +5,28 @@ import sys
 
 # usage: see README.md
 
+def get_caldel_range(object):
+    binsX = object.GetXaxis().GetNbins()
+    startPosition = 0
+    endPosition = 0
+    startFound = False
+    endFound = False
+    maxEfficiency = object.GetBinContent(object.GetMaximumBin())
+    for c in range(binsX):
+        count = object.GetBinContent(1 + c, 1)
+        if not startFound and count > 0.9 * maxEfficiency:
+            startFound = True
+            startPosition = c
+        if startFound and not endFound and c - startPosition > 5 and count > 0.9 * maxEfficiency:
+            endPosition = c
+        if startFound and not endFound and c - startPosition > 5 and count < 0.1 * maxEfficiency:
+            endFound = True
+            if endPosition < 1:
+                endPosition = c
+        if startFound and endFound:
+            break
+    return [startPosition, endPosition]
+
 if len(sys.argv) < 2:
     print "usage: %s path/to/runfolder/with/root/files [Quantity] [mean/rms]"%sys.argv[0]
     print "e.g. %s runs/1234 Threshold1D mean"%sys.argv[0]
@@ -16,7 +38,7 @@ extractQuantity = (sys.argv[2] if len(sys.argv) > 2 else 'Threshold1D').strip()
 if extractQuantity == '-':
     extractQuantity = ''
 statisticalProperty = (sys.argv[3] if len(sys.argv) > 3 else 'mean').lower()
-if statisticalProperty not in ['mean', 'rms', 'n', 'efficient', 'inefficient', 'alive', 'dead', 'extrahits', 'deltaiana','tree','meanoccupancy','efficiency','inefficiency'] and not statisticalProperty.startswith('occupancy'):
+if statisticalProperty not in ['mean', 'rms', 'n', 'efficient', 'inefficient', 'alive', 'dead', 'extrahits', 'deltaiana','tree','meanoccupancy','efficiency','inefficiency','caldelmidpoint','caldelwidth'] and not statisticalProperty.startswith('occupancy'):
     print "unknown value:" + statisticalProperty
     exit(-2)
 
@@ -95,7 +117,17 @@ with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
                     histogramNameFull = histogramName + '_' + extractQuantity if len(extractQuantity) > 0 else histogramName
                     object = rootFile.Get(histogramNameFull)
                     if object:
-                        break
+                        if type(object) is ROOT.TCanvas:
+                            canvasObject = object
+                            for i in canvasObject.GetListOfPrimitives():
+                                if i.GetName().strip() == histogramName.split('/')[-1].strip():
+                                    object = i
+                                    break
+                            if object:
+                                break
+
+                        else:
+                            break
 
                 # extract value from histogram
                 try:
@@ -162,9 +194,16 @@ with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
                     elif statisticalProperty == 'deltaiana':
                         f2 = object.Get('f2')
                         print f2
+                    elif statisticalProperty == 'caldelmidpoint':
+                        caldelRange = get_caldel_range(object)
+                        value = (caldelRange[1]+caldelRange[0])/2.0
+                    elif statisticalProperty == 'caldelwidth':
+                        caldelRange = get_caldel_range(object)
+                        value = (caldelRange[1]-caldelRange[0])
                     else:
                         value = object.GetMean() if object else '-1'
-                except:
+                except Exception as e:
+                    print "EXCEPTION:", e
                     value = -999
 
             # skip modules with noAnalogSignal flag

@@ -4,6 +4,7 @@ ROOT.gROOT.SetBatch()
 import datetime
 import fileinput
 import os
+import array
 
 # usage: see README.md
 
@@ -24,7 +25,7 @@ class BPixPlotter:
         self.canvasH = 5000
 
         self.paletteCoordinates = [0.85, 0.7, 0.89, 0.95]
-        self.paletteContours = 100
+        self.paletteContours = 99
 
         # geometry
         self.ladderLayers = [0, 6, 14, 22, 32]
@@ -46,8 +47,8 @@ class BPixPlotter:
                                 [235, 1], [243, 2], [251, 3], [259, 4], [267, 5], [275, 6], [283, 7], [291, 8]
                                 ]
 
-        self.moduleNamePositions = [[4, "MOD4"], [12, "MOD3"], [20, "MOD2"], [28, "MOD1"], [36, "MOD1"], [44, "MOD2"],
-                                    [52, "MOD3"], [60, "MOD4"]
+        self.moduleNamePositions = [[4, "MOD4"], [12, "MOD3"], [20, "MOD2"], [28, "MOD1"],
+                                    [36, "MOD1"], [44, "MOD2"], [52, "MOD3"], [60, "MOD4"]
                                     ]
 
         self.layerNamePositions = [[1, "BmO LYR1"], [12, "BmI LYR1"],
@@ -66,20 +67,79 @@ class BPixPlotter:
         self.fileFormats = ['pdf', 'root', 'png']
         self.blacklist = {}
 
+        # special styling options if only 1 layer is drawn
+        self.layerOptions = {
+            'lyr1': {
+                'yrange': '272,296',
+                'height': 1000,
+                'topmargin': 0.08,
+                'labelmargin': 0.2,
+                'palettey1': 0.2,
+                'palettey2': 0.92
+            },
+            'lyr2': {
+                'yrange': '216,272',
+                'height': 1500,
+                'topmargin': 0.08,
+                'labelmargin': 0.4,
+                'palettey1': 0.4,
+                'palettey2': 0.92
+            },
+            'lyr3': {
+                'yrange': '128,216',
+                'height': 2100,
+                'topmargin': 0.08,
+                'labelmargin': 0.8,
+                'palettey1': 0.55,
+                'palettey2': 0.92
+            },
+            'lyr4': {
+                'yrange': '0,128',
+                'height': 3000,
+                'topmargin': 0.08,
+                'labelmargin': 1.1,
+                'palettey1': 0.6,
+                'palettey2': 0.92
+            },
+        }
+
     def plot(self, dataToPlot):
 
         # (plot) options
         options = {}
         for x in dataToPlot:
             if x.split(':')[0].strip().lower() == 'set':
-                optionParts = ':'.join(x.split(':')[1:]).strip().split('=')
-                if len(optionParts) > 1:
-                    options[optionParts[0].lower()] = optionParts[1]
-                else:
-                    options[optionParts[0].lower()] = True
+                givenOptions = x.split(';')
+                for opt in givenOptions:
+                    if opt.split(':')[0].strip().lower() == 'set':
+                        optionParts = ':'.join(opt.split(':')[1:]).strip().split('=')
+                        if len(optionParts) > 1:
+                            options[optionParts[0].lower()] = optionParts[1]
+                        else:
+                            options[optionParts[0].lower()] = True
         if 'xrange' in options:
             options['xmin'] = options['xrange'].split(',')[0]
             options['xmax'] = options['xrange'].split(',')[1]
+
+        # apply special styling options if only 1 layer is drawn
+        for key, value in self.layerOptions.iteritems():
+            if key in options:
+                options.update(value)
+
+        # palette
+        try:
+            if 'palette' in options:
+                if options['palette'].lower().strip() == 'rainbow':
+                    stops = array.array('d', [0.20, 0.34, 0.61, 0.84, 1.00])
+                    red = array.array('d', [0.00, 0.00, 0.87, 1.00, 0.31])
+                    green = array.array('d', [0.00, 0.81, 1.00, 0.20, 0.00])
+                    blue = array.array('d', [0.81, 1.00, 0.12, 0.00, 0.00])
+                    ROOT.TColor.CreateGradientColorTable(4, stops, red, green, blue, 99)
+
+
+                ROOT.gStyle.SetPalette(int(options['palette']))
+        except:
+            pass
 
         # data to plot
         rocData = [x.strip().split(' ') for x in dataToPlot if '_SEC' in x and '_LYR' in x]
@@ -90,8 +150,18 @@ class BPixPlotter:
         nRows = self.halfSides * self.rocsPerModuleColumn * nLaddersTotal
 
         # initialize canvas and histograms
-        c1 = ROOT.TCanvas("c1", "c1", self.canvasW, self.canvasH)
+
+        c1 = ROOT.TCanvas("c1", "c1", int(options['width']) if 'width' in options else self.canvasW, int(options['height']) if 'height' in options else self.canvasH)
         layerHistogram = ROOT.TH2D("BPix", options['title'] if 'title' in options else self.plotTitle, nCols, 0, nCols, nRows, 0, nRows)
+
+        nRowsBottom = 0
+        nRowsTop = nRows
+
+        if 'yrange' in options:
+            layerHistogram.GetYaxis().SetRangeUser(float(options['yrange'].split(',')[0]), float(options['yrange'].split(',')[1]))
+            nRowsBottom = int(options['yrange'].split(',')[0])
+            nRowsTop = int(options['yrange'].split(',')[1])
+
         layerHistogram.SetStats(0)
         layer1dHists = {}
         filled1D = {}
@@ -116,6 +186,10 @@ class BPixPlotter:
             layerOffset = 2*self.rocsPerModuleColumn*sum(self.ladderLayers[:layer])
             iRow = 1 + nRows - layerOffset - (self.rocsPerModuleColumn*(ladder + (0 if rocID[1].endswith('O') else self.ladderLayers[layer])) + rocRow)
             iCol = module * self.rocsPerModuleRow + rocCol
+
+            # if roc not visible in range continue
+            if iRow < nRowsBottom or iRow >= nRowsTop:
+                continue
 
             try:
                 # masked (=not tested) ROCS, based on detectconfig.dat
@@ -171,42 +245,56 @@ class BPixPlotter:
         # draw lines
         lines = []
 
+        # horizontal lines to separate Bm Bp i o
         for i in range(nLaddersTotal*2):
-            line = ROOT.TLine(0, nRows - i*2, nCols, nRows - i*2)
-            line.SetLineColor(self.ladderLineColor)
-            line.SetLineWidth(1)
-            line.Draw("same")
-            lines.append(line)
+            histogramRow = nRows - i*2
+            if histogramRow <= nRowsTop and histogramRow >= nRowsBottom:
+                line = ROOT.TLine(0, histogramRow, nCols, histogramRow)
+                line.SetLineColor(self.ladderLineColor)
+                line.SetLineWidth(1)
+                line.Draw("same")
+                lines.append(line)
 
+        # horizontal lines to separate layers
         for i in self.thickBlackLines:
-            line = ROOT.TLine(0, nRows - i*4, nCols, nRows - i*4)
-            line.SetLineColor(ROOT.kBlack)
-            line.SetLineWidth(2)
-            line.Draw("same")
-            lines.append(line)
+            histogramRow = nRows - i*4
+            if histogramRow <= nRowsTop and histogramRow >= nRowsBottom:
+                line = ROOT.TLine(0, histogramRow, nCols, histogramRow)
+                line.SetLineColor(ROOT.kBlack)
+                line.SetLineWidth(2)
+                line.Draw("same")
+                lines.append(line)
 
-        for i in range(1,self.modulesPerRow):
-            line = ROOT.TLine(i*self.modulesPerRow, 0, i*self.modulesPerRow, nRows)
+        # vertical lines to separate modules
+        for i in range(0,self.modulesPerRow+1):
+            line = ROOT.TLine(i*self.rocsPerModuleRow, nRowsBottom, i*self.rocsPerModuleRow, nRowsTop)
             line.SetLineColor(ROOT.kBlack)
             if i==(self.modulesPerRow/2):
                 line.SetLineWidth(2)
             line.Draw("same")
             lines.append(line)
 
+        # horizontal lines to separate sectors
         for i in self.dashedLinePositions:
-            line = ROOT.TLine(0, nRows - i, nCols, nRows - i)
-            line.SetLineColor(self.sectorLineColor)
-            line.SetLineStyle(11)
-            line.SetLineWidth(2)
-            line.Draw("same")
-            lines.append(line)
+            histogramRow = nRows - i
+            if histogramRow <= nRowsTop and histogramRow >= nRowsBottom:
+                line = ROOT.TLine(0, histogramRow, nCols, histogramRow)
+                line.SetLineColor(self.sectorLineColor)
+                line.SetLineStyle(11)
+                line.SetLineWidth(2)
+                line.Draw("same")
+                lines.append(line)
+
+        # horizontal lines to separate ladders
         for i in self.horizontalBlackLines:
-            line = ROOT.TLine(0, nRows - i, nCols, nRows - i)
-            line.SetLineColor(ROOT.kBlack)
-            line.SetLineStyle(2)
-            line.SetLineWidth(1)
-            line.Draw("same")
-            lines.append(line)
+            histogramRow = nRows - i
+            if histogramRow <= nRowsTop and histogramRow >= nRowsBottom:
+                line = ROOT.TLine(0, histogramRow, nCols, histogramRow)
+                line.SetLineColor(ROOT.kBlack)
+                line.SetLineStyle(2)
+                line.SetLineWidth(1)
+                line.Draw("same")
+                lines.append(line)
 
         try:
             os.mkdir('Plots')
@@ -220,19 +308,19 @@ class BPixPlotter:
         except:
             pass
 
-
         ROOT.gPad.Update()
-        c1.SetRightMargin(0.2)
-        c1.SetLeftMargin(0.2)
-        c1.SetTopMargin(0.05)
-        c1.SetBorderMode(1)
+        c1.SetRightMargin(float(options['rightmargin']) if 'rightmargin' in options else 0.2)
+        c1.SetLeftMargin(float(options['leftmargin']) if 'leftmargin' in options else 0.2)
+        c1.SetTopMargin(float(options['topmargin']) if 'topmargin' in options else .05)
+        c1.SetBottomMargin(float(options['bottommargin']) if 'bottommargin' in options else .05)
+        c1.SetBorderMode(int(options['bordermode']) if 'bordermode' in options else 1)
         ROOT.gPad.Update()
         try:
             palette = layerHistogram.GetListOfFunctions().FindObject("palette")
-            palette.SetY1NDC(self.paletteCoordinates[1])
-            palette.SetY2NDC(self.paletteCoordinates[3])
-            palette.SetX1NDC(self.paletteCoordinates[0])
-            palette.SetX2NDC(self.paletteCoordinates[2])
+            palette.SetY1NDC(float(options['palettey1']) if 'palettey1' in options else self.paletteCoordinates[1])
+            palette.SetY2NDC(float(options['palettey2']) if 'palettey2' in options else self.paletteCoordinates[3])
+            palette.SetX1NDC(float(options['palettex1']) if 'palettex1' in options else self.paletteCoordinates[0])
+            palette.SetX2NDC(float(options['palettex2']) if 'palettex2' in options else self.paletteCoordinates[2])
         except:
             pass
 
@@ -241,30 +329,35 @@ class BPixPlotter:
         row = 0
         rootText = ROOT.TText()
         rootText.SetTextSize(0.012)
-        for i in range(1,5):
+        for i in range(1, 5):
             for k in range(2):
                 ladder = 0
                 for j in range(self.ladderLayers[i]):
                     ladder += 1
-                    rootText.DrawText(nCols+1, nRows-row-1.2, "%d"%ladder)
+                    textRow = nRows-row-1.2
+                    if textRow <= nRowsTop and textRow >= nRowsBottom:
+                        rootText.DrawText(nCols+1, nRows-row-1.2, "%d"%ladder)
                     row += 2
 
         for sector in self.sectorPositions:
-            rootText.DrawText(-1.5, nRows - sector[0] - 1, "%d" % sector[1])
-
+            textRow = nRows - sector[0] - 1
+            if textRow <= nRowsTop and textRow >= nRowsBottom:
+                rootText.DrawText(-1.5, textRow, "%d" % sector[1])
 
         for layerName in self.layerNamePositions:
-            rootText.DrawText(-10, nRows - layerName[0] - 1.5, layerName[1])
+            textRow = nRows - layerName[0] - 1.5
+            if textRow <= nRowsTop and textRow >= nRowsBottom:
+                rootText.DrawText(-10, textRow, layerName[1])
 
         for moduleName in self.moduleNamePositions:
-            rootText.DrawText(moduleName[0]-2, -2.5, moduleName[1])
-            rootText.DrawText(moduleName[0]-2, nRows+1.5, moduleName[1])
+            rootText.DrawText(moduleName[0]-2, nRowsBottom-0.5-(float(options['labelmargin']) if 'labelmargin' in options else 1.3), moduleName[1])
+            rootText.DrawText(moduleName[0]-2, nRowsTop+(float(options['labelmargin']) if 'labelmargin' in options else 0.9), moduleName[1])
 
         rootText.DrawTextNDC(0.8, 0.988, datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S'))
         ROOT.gPad.Update()
         st = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         for ext in self.fileFormats:
-            c1.SaveAs(plotfolder + '/bpix_%s.%s'%(st,ext))
+            c1.SaveAs(plotfolder + '/%sbpix_%s.%s'%((options['filename']+ '_') if 'filename' in options else '', st, ext))
         c1.Delete()
 
         if 'distributions' in options and options['distributions']:
@@ -273,12 +366,14 @@ class BPixPlotter:
                 h.GetXaxis().SetTitle('Value')
                 h.GetYaxis().SetTitle('# ROCs')
                 h.Draw()
-                ROOT.gPad.SetGridx()
-                ROOT.gPad.SetGridy()
+                if 'gridx' not in options or not options['gridx']:
+                    ROOT.gPad.SetGridx()
+                if 'gridy' not in options or not options['gridy']:
+                    ROOT.gPad.SetGridy()
                 ROOT.gPad.SetLogy()
                 ROOT.gPad.Update()
                 for ext in self.fileFormats:
-                    c1.SaveAs(plotfolder + '/bpix_distribution_L%d_%s.%s' % (i, st, ext))
+                    c1.SaveAs(plotfolder + '/%sbpix_distribution_L%d_%s.%s' % ((options['filename']+ '_') if 'filename' in options else '', i, st, ext))
                 c1.Delete()
 
 dataToPlot = []

@@ -6,9 +6,9 @@ Creates a ROC map of full detector. ROC orientation is always 7 to 0 in the uppe
 
 #### usage
 ````
-(a) ./detectorplot.py list.txt
-(b) cat list.txt | ./detectorplot.py
-(c) ./detectorplot.py,  then input line by line and end with CTRL+d
+(a) tools/detectorplot.py list.txt
+(b) cat list.txt | tools/detectorplot.py
+(c) tools/detectorplot.py,  then input line by line and end with CTRL+d
 ````
 
 input: .txt files created by ./extract_roc_list.py, format e.g.:
@@ -25,8 +25,28 @@ BPix_BmO_SEC1_LYR1_LDR1H_MOD2_ROC7 65
 ````
 '#' means not tested, because masked in detectconfig, '*' means tested and flagged bad. 'SET' options are optional.
 
+options:
+````
+ZRANGE=..       z axis range
+XRANGE=..       x axis range for 1D distributions
+LOGZ            log scale
+TITLE=..        plot title
+PALETTE=..      root palette number, 55 for "rain bow", 'rainbow' for blue->red rainbow
+LYR1            only plot LYR1
+LYR2            only plot LYR2
+LYR3            only plot LYR3
+LYR4            only plot LYR4
+DISTRIBUTIONS   plot 1D distributions
+````
 output: some colorful PDFs
 
+#### example
+
+````
+tools/detectorplot.py examples/test.txt
+````
+
+more examples below!
 
 ### tools/extract_roc_list.py
 Extract ROC list from root file Histograms *or* Tree.
@@ -70,6 +90,13 @@ all examples below are ran from run directory. `$DETECTORPLOTPATH` should point 
 (echo -e "SET:TITLE=Run 817 delta Vana\nSET:XBINS=256" && $DETECTORPLOTPATH/extract_roc_list.py ./
    SummaryTrees/PassState:pass tree | grep 0.0 | awk '{print $1 " *"}' && $DETECTORPLOTPATH/extract_roc_list.py ./
    SummaryTrees/SummaryInfo:deltaVana tree) | $DETECTORPLOTPATH/detectorplot.py
+````
+**IanaBpix**, make separate plots for each layer:
+````
+(echo -e "SET:TITLE=Run 817 delta Vana LYR1;SET:LYR1;SET:FILENAME=run817_lyr1_deltavana" && $DETECTORPLOTPATH/extract_roc_list.py ./ SummaryTrees/PassState:pass tree | grep 0.0 | awk '{print $1 " *"}' && $DETECTORPLOTPATH/extract_roc_list.py ./ SummaryTrees/SummaryInfo:deltaVana tree) | $DETECTORPLOTPATH/detectorplot.py
+(echo -e "SET:TITLE=Run 817 delta Vana LYR2;SET:LYR2;SET:FILENAME=run817_lyr2_deltavana" && $DETECTORPLOTPATH/extract_roc_list.py ./ SummaryTrees/PassState:pass tree | grep 0.0 | awk '{print $1 " *"}' && $DETECTORPLOTPATH/extract_roc_list.py ./ SummaryTrees/SummaryInfo:deltaVana tree) | $DETECTORPLOTPATH/detectorplot.py
+(echo -e "SET:TITLE=Run 817 delta Vana LYR3;SET:LYR3;SET:FILENAME=run817_lyr3_deltavana" && $DETECTORPLOTPATH/extract_roc_list.py ./ SummaryTrees/PassState:pass tree | grep 0.0 | awk '{print $1 " *"}' && $DETECTORPLOTPATH/extract_roc_list.py ./ SummaryTrees/SummaryInfo:deltaVana tree) | $DETECTORPLOTPATH/detectorplot.py
+(echo -e "SET:TITLE=Run 817 delta Vana LYR4;SET:LYR4;SET:FILENAME=run817_lyr4_deltavana" && $DETECTORPLOTPATH/extract_roc_list.py ./ SummaryTrees/PassState:pass tree | grep 0.0 | awk '{print $1 " *"}' && $DETECTORPLOTPATH/extract_roc_list.py ./ SummaryTrees/SummaryInfo:deltaVana tree) | $DETECTORPLOTPATH/detectorplot.py
 ````
 **TBM** parameters (from config/tbm/n/ folder):
 ````

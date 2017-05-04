@@ -136,6 +136,12 @@ class BPixPlotter:
                     blue = array.array('d', [0.81, 1.00, 0.12, 0.00, 0.00])
                     ROOT.TColor.CreateGradientColorTable(4, stops, red, green, blue, 99)
 
+                if options['palette'].lower().strip() == 'rainbow2':
+                    stops = array.array('d', [0, 0.09, 0.17, 0.26, 0.37, 0.51, 0.63, 0.76, 0.88, 1.0])
+                    red = array.array('d', [0.12, 0.164706, 0.117647, 0.12549, 0.631373, 0.878431, 0.937255, 1., 0.929412, 1.])
+                    green = array.array('d', [0.4, 0.631373, 0.74902, 0.8, 0.827451, 0.854902, 0.768627, 0.607843, 0.380392, 0.])
+                    blue = array.array('d', [0.85, 0.866667, 0.737255, 0.227451, 0.129412, 0.137255, 0.14902, 0.156863, 0.145098, 0.933333])
+                    ROOT.TColor.CreateGradientColorTable(10, stops, red, green, blue, 99)
 
                 ROOT.gStyle.SetPalette(int(options['palette']))
         except:

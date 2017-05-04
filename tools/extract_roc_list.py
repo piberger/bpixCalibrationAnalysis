@@ -27,6 +27,13 @@ def get_caldel_range(object):
             break
     return [startPosition, endPosition]
 
+def get_caldel_efficiency(object, startPosition, endPosition):
+    efficiencies = []
+    for c in range(startPosition, endPosition+1):
+        efficiencies.append(object.GetBinContent(1 + c, 1))
+    return 1.0*sum(efficiencies)/len(efficiencies) if len(efficiencies) > 0 else -1
+
+
 if len(sys.argv) < 2:
     print "usage: %s path/to/runfolder/with/root/files [Quantity] [mean/rms]"%sys.argv[0]
     print "e.g. %s runs/1234 Threshold1D mean"%sys.argv[0]
@@ -38,7 +45,7 @@ extractQuantity = (sys.argv[2] if len(sys.argv) > 2 else 'Threshold1D').strip()
 if extractQuantity == '-':
     extractQuantity = ''
 statisticalProperty = (sys.argv[3] if len(sys.argv) > 3 else 'mean').lower()
-if statisticalProperty not in ['mean', 'rms', 'n', 'efficient', 'inefficient', 'alive', 'dead', 'extrahits', 'deltaiana','tree','meanoccupancy','efficiency','inefficiency','caldelmidpoint','caldelwidth'] and not statisticalProperty.startswith('occupancy'):
+if statisticalProperty not in ['mean', 'rms', 'n', 'efficient', 'inefficient', 'alive', 'dead', 'extrahits', 'deltaiana','tree','meanoccupancy','efficiency','inefficiency','caldelmidpoint','caldelwidth','caldelefficiency','caldelinefficiency'] and not statisticalProperty.startswith('occupancy'):
     print "unknown value:" + statisticalProperty
     exit(-2)
 
@@ -200,6 +207,15 @@ with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
                     elif statisticalProperty == 'caldelwidth':
                         caldelRange = get_caldel_range(object)
                         value = (caldelRange[1]-caldelRange[0])
+                    elif statisticalProperty == 'caldelefficiency':
+                        caldelRange = get_caldel_range(object)
+                        value = get_caldel_efficiency(object, caldelRange[0], caldelRange[1])
+                    elif statisticalProperty == 'caldelinefficiency':
+                        caldelRange = get_caldel_range(object)
+                        width = (caldelRange[1]-caldelRange[0])
+                        startPos = int(caldelRange[0] + width * 0.25)
+                        endPos = int(caldelRange[0] + width * 0.75)
+                        value = 1.0-get_caldel_efficiency(object, startPos, endPos)
                     else:
                         value = object.GetMean() if object else '-1'
                 except Exception as e:

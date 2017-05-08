@@ -2,6 +2,7 @@
 import glob
 import ROOT
 import sys
+import os
 
 # usage: see README.md
 
@@ -100,6 +101,11 @@ if statisticalProperty == 'tree':
 
 
 # loop over all modules in detectconfig
+if not os.path.isfile(sys.argv[1] + '/detectconfig.dat'):
+    print >> sys.stderr, "\x1b[31mERROR: detectconfig.dat missing in run directory!\x1b[0m"
+    print "ERROR"
+    exit(0)
+
 with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
     for line in inputfile:
         if '_' in line:

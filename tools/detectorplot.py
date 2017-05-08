@@ -64,7 +64,7 @@ class BPixPlotter:
         self.thickBlackLines = [6, 20, 42]
 
         # other
-        self.fileFormats = ['pdf', 'root', 'png']
+        self.fileFormats = ['png']
         self.blacklist = {}
 
         # special styling options if only 1 layer is drawn
@@ -117,6 +117,8 @@ class BPixPlotter:
                             options[optionParts[0].lower()] = optionParts[1]
                         else:
                             options[optionParts[0].lower()] = True
+            if x.strip().lower() == "error":
+                exit(-1)
         if 'xrange' in options:
             options['xmin'] = options['xrange'].split(',')[0]
             options['xmax'] = options['xrange'].split(',')[1]
@@ -146,6 +148,10 @@ class BPixPlotter:
                 ROOT.gStyle.SetPalette(int(options['palette']))
         except:
             pass
+
+        # output file formats
+        if 'formats' in options:
+            self.fileFormats = [x.strip().lower() for x in options['format'].split(',')]
 
         # data to plot
         rocData = [x.strip().split(' ') for x in dataToPlot if '_SEC' in x and '_LYR' in x]

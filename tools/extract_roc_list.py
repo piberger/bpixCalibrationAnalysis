@@ -13,6 +13,11 @@ def get_caldel_range(object):
     startFound = False
     endFound = False
     maxEfficiency = object.GetBinContent(object.GetMaximumBin())
+
+    # limit efficiency to 100%, additional unwanted hits can now be detected with 'caldelextrahits' option!
+    if maxEfficiency > 1.0:
+        maxEfficiency = 1.0
+
     for c in range(binsX):
         count = object.GetBinContent(1 + c, 1)
         if not startFound and count > 0.9 * maxEfficiency:
@@ -34,6 +39,13 @@ def get_caldel_efficiency(object, startPosition, endPosition):
         efficiencies.append(object.GetBinContent(1 + c, 1))
     return 1.0*sum(efficiencies)/len(efficiencies) if len(efficiencies) > 0 else -1
 
+def get_caldel_bins_above_one(object, startPosition, endPosition):
+    nBinsAboveOne = 0
+    for c in range(startPosition, endPosition+1):
+        if object.GetBinContent(1 + c, 1) > 1.0:
+            nBinsAboveOne += 1
+    return nBinsAboveOne
+
 
 if len(sys.argv) < 2:
     print "usage: %s path/to/runfolder/with/root/files [Quantity] [mean/rms]"%sys.argv[0]
@@ -46,7 +58,7 @@ extractQuantity = (sys.argv[2] if len(sys.argv) > 2 else 'Threshold1D').strip()
 if extractQuantity == '-':
     extractQuantity = ''
 statisticalProperty = (sys.argv[3] if len(sys.argv) > 3 else 'mean').lower()
-if statisticalProperty not in ['mean', 'rms', 'n', 'efficient', 'inefficient', 'alive', 'dead', 'extrahits', 'deltaiana','tree','meanoccupancy','efficiency','inefficiency','caldelmidpoint','caldelwidth','caldelefficiency','caldelinefficiency'] and not statisticalProperty.startswith('occupancy'):
+if statisticalProperty not in ['mean', 'rms', 'n', 'efficient', 'inefficient', 'alive', 'dead', 'extrahits', 'deltaiana','tree','meanoccupancy','efficiency','inefficiency','caldelmidpoint','caldelwidth','caldelefficiency','caldelinefficiency','caldelextrahits'] and not statisticalProperty.startswith('occupancy'):
     print "unknown value:" + statisticalProperty
     exit(-2)
 
@@ -222,6 +234,12 @@ with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
                         startPos = int(caldelRange[0] + width * 0.25)
                         endPos = int(caldelRange[0] + width * 0.75)
                         value = 1.0-get_caldel_efficiency(object, startPos, endPos)
+                    elif statisticalProperty == 'caldelextrahits':
+                        caldelRange = get_caldel_range(object)
+                        width = (caldelRange[1]-caldelRange[0])
+                        startPos = int(caldelRange[0] + width * 0.05)
+                        endPos = int(caldelRange[0] + width * 0.95)
+                        value = get_caldel_bins_above_one(object, startPos, endPos)
                     else:
                         value = object.GetMean() if object else '-1'
                 except Exception as e:

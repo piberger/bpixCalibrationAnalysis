@@ -134,6 +134,7 @@ with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
                     value = treeData[rocNameJoined]
                     object = True
                 else:
+                    print >> sys.stderr, "\x1b[31mWARNING: roc was not found in root trees:", rocNameJoined, "\x1b[0m"
                     value = -1
                     object = None
 

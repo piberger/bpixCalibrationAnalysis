@@ -134,6 +134,7 @@ with open(sys.argv[1] + '/detectconfig.dat','r') as inputfile:
                     value = treeData[rocNameJoined]
                     object = True
                 else:
+                    value = -1
                     object = None
 
             else:
